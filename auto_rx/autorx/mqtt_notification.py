@@ -123,6 +123,16 @@ class MqttNotification(object):
 
     def process_telemetry(self, telemetry):
         """ Process a new telemmetry dict, and send a mqtt msg if it is a new sonde. """
+
+        try:
+            # This is a new sonde. Send the MQTT msg.
+            ##########################################################
+            self.send_notification_mqtt(topic=self.mqtt_topic+"/telemetry", message=json.dumps(telemetry))
+            ##########################################################
+        
+        except Exception as e:
+            self.log_error("Error sending telemetry MQTT msg - %s" % str(e))
+
         _id = telemetry["id"]
 
         if _id not in self.sondes:
@@ -152,7 +162,7 @@ class MqttNotification(object):
                     ##########################################################
                 
                 except Exception as e:
-                    self.log_error("Error sending MQTT msg - %s" % str(e))
+                    self.log_error("Error sending new sonde MQTT msg - %s" % str(e))
 
         else:
             # Update track data.
@@ -205,10 +215,14 @@ class MqttNotification(object):
                                 "Landing sonde %s triggered range threshold." % _id
                             )
 
-                            # Nearby sonde landing detected
-                            ##########################################################
-                            self.send_notification_mqtt(topic=self.mqtt_topic+"/landing", message=json.dumps(telemetry))
-                            ##########################################################
+                            try:
+                                # Nearby sonde landing detected
+                                ##########################################################
+                                self.send_notification_mqtt(topic=self.mqtt_topic+"/landing", message=json.dumps(telemetry))
+                                ##########################################################
+                
+                            except Exception as e:
+                                self.log_error("Error sending landing sonde MQTT msg - %s" % str(e))
 
                     else:
                         # No station position to work with! Bomb out at this point
