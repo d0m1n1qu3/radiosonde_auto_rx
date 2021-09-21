@@ -127,7 +127,7 @@ class MqttNotification(object):
         try:
             # This is a new sonde. Send the MQTT msg.
             ##########################################################
-            self.send_notification_mqtt(topic=self.mqtt_topic+"/telemetry", message=json.dumps(telemetry))
+            self.send_notification_mqtt(topic=self.mqtt_topic+"/telemetry", message=json.dumps(telemetry, default=str))
             ##########################################################
         
         except Exception as e:
@@ -158,7 +158,7 @@ class MqttNotification(object):
                 try:
                     # This is a new sonde. Send the MQTT msg.
                     ##########################################################
-                    self.send_notification_mqtt(topic=self.mqtt_topic+"/new", message=json.dumps(telemetry))
+                    self.send_notification_mqtt(topic=self.mqtt_topic+"/new", message=json.dumps(telemetry, default=str))
                     ##########################################################
                 
                 except Exception as e:
@@ -218,7 +218,7 @@ class MqttNotification(object):
                             try:
                                 # Nearby sonde landing detected
                                 ##########################################################
-                                self.send_notification_mqtt(topic=self.mqtt_topic+"/landing", message=json.dumps(telemetry))
+                                self.send_notification_mqtt(topic=self.mqtt_topic+"/landing", message=json.dumps(telemetry, default=str))
                                 ##########################################################
                 
                             except Exception as e:
