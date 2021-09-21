@@ -290,12 +290,12 @@ if __name__ == "__main__":
 
     # Start up an mqtt notifification object.
     _mqtt_notification = MqttNotification(
-        mqtt_server=config["mqtt_mqtt_server"],
-        mqtt_port=config["mqtt_mqtt_port"],
-        mqtt_authentication=config["mqtt_mqtt_authentication"],
-        mqtt_login=config["mqtt_mqtt_login"],
-        mqtt_password=config["mqtt_mqtt_password"],
-        mqtt_topic=config["mqtt_mqtt_topic"],
+        mqtt_server=config["mqtt_server"],
+        mqtt_port=config["mqtt_port"],
+        mqtt_authentication=config["mqtt_authentication"],
+        mqtt_login=config["mqtt_login"],
+        mqtt_password=config["mqtt_password"],
+        mqtt_topic=config["mqtt_topic"],
         station_position=(-10.0, 10.0, 0.0,),
         landing_notifications=True,
         launch_notifications=True,

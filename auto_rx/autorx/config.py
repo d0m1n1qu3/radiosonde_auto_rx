@@ -70,6 +70,14 @@ def read_auto_rx_config(filename, no_sdr_test=False):
         "email_from": "sonde@localhost",
         "email_to": None,
         "email_subject": "<type> Sonde launch detected on <freq>: <id>",
+        # Mqtt Settings
+        "mqtt_enabled": False,
+        "mqtt_server": "localhost",
+        "mqtt_port": 25,
+        "mqtt_authentication": "None",
+        "mqtt_login": "None",
+        "mqtt_password": "None",
+        "mqtt_topic": "radiosonde_auto_rx",
         # SDR Settings
         "sdr_fm": "rtl_fm",
         "sdr_power": "rtl_power",
@@ -219,6 +227,49 @@ def read_auto_rx_config(filename, no_sdr_test=False):
             except:
                 logging.error("Config - Invalid or missing email settings. Disabling.")
                 auto_rx_config["email_enabled"] = False
+
+        # MQTT Settings
+        if config.has_option("mqtt", "mqtt_enabled"):
+            try:
+                auto_rx_config["mqtt_enabled"] = config.getboolean(
+                    "mqtt", "mqtt_enabled"
+                )
+                auto_rx_config["mqtt_server"] = config.get("mqtt", "mqtt_server")
+                auto_rx_config["mqtt_port"] = config.get("mqtt", "mqtt_port")
+                auto_rx_config["mqtt_authentication"] = config.get(
+                    "mqtt", "mqtt_authentication"
+                )
+                auto_rx_config["mqtt_login"] = config.get("mqtt", "mqtt_login")
+                auto_rx_config["mqtt_password"] = config.get(
+                    "mqtt", "mqtt_password"
+                )
+                auto_rx_config["mqtt_topic"] = config.get("mqtt", "mqtt_topic")
+
+                if auto_rx_config["mqtt_authentication"] not in [
+                    "None",
+                    "BASIC",
+                ]:
+                    logging.error(
+                        "Config - Invalid mqtt authentication setting. Must be None or Basis."
+                    )
+                    return None
+
+                auto_rx_config["mqtt_launch_notifications"] = config.getboolean(
+                    "mqtt", "launch_notifications"
+                )
+                auto_rx_config["mqtt_landing_notifications"] = config.getboolean(
+                    "mqtt", "landing_notifications"
+                )
+                auto_rx_config["mqtt_landing_range_threshold"] = config.getfloat(
+                    "mqtt", "landing_range_threshold"
+                )
+                auto_rx_config["mqtt_landing_altitude_threshold"] = config.getfloat(
+                    "mqtt", "landing_altitude_threshold"
+                )
+
+            except:
+                logging.error("Config - Invalid or missing mqtt settings. Disabling.")
+                auto_rx_config["mqtt_enabled"] = False
 
         # SDR Settings
         auto_rx_config["sdr_fm"] = config.get("advanced", "sdr_fm_path")

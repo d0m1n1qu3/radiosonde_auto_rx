@@ -543,7 +543,7 @@ landing_altitude_threshold = 1000
 mqtt_server = localhost
 mqtt_port = 1883
 
-# Authentication type, Valid options are: None, Login
+# Authentication type, Valid options are: None, Basic
 mqtt_authentication = None
 
 # If using authentication, the following fields need to be populated:
