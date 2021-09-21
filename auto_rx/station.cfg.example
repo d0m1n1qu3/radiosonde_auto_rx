@@ -516,3 +516,39 @@ radius_temporary_block = False
 # This helps catch glitches around 00Z UTC from iMet & LMS6 sondes, and bad CRC checks from
 # DFM sondes.
 sonde_time_threshold = 3
+
+
+######################
+# MQTT NOTIFICATIONS #
+######################
+# Sends an mqtt msg notification when a new Sonde is detected
+[mqtt]
+mqtt_enabled = False
+
+# Send an mqtt msg for each new radiosonde observed.
+launch_notifications = True
+
+# Send mqtt msgs when a radiosonde is detected descending near your station location
+landing_notifications = True
+
+# Range threshold for Landing notifications (km from your station location)
+landing_range_threshold = 30
+
+# Altitude threshold for Landing Notifications (metres)
+# Notifications will only occur for sondes which have been observed descending (>2m/s descent rate) below this altitude
+# for at least 10 observations
+landing_altitude_threshold = 1000
+
+# Server details. Note that usually Port 465 is used for SSL auth, and 587 is used for TLS.
+mqtt_server = localhost
+mqtt_port = 1883
+
+# Authentication type, Valid options are: None, Login
+mqtt_authentication = None
+
+# If using authentication, the following fields need to be populated:
+mqtt_login = None
+mqtt_password = None
+
+# Main mqtt topic
+mqtt_topic = radiosonde_auto_rx

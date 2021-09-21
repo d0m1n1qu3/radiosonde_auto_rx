@@ -27,6 +27,7 @@ from autorx.scan import SondeScanner
 from autorx.decode import SondeDecoder, VALID_SONDE_TYPES, DRIFTY_SONDE_TYPES
 from autorx.logger import TelemetryLogger
 from autorx.email_notification import EmailNotification
+from autorx.mqtt_notification import MqttNotification
 from autorx.habitat import HabitatUploader
 from autorx.aprs import APRSUploader
 from autorx.ozimux import OziUploader
@@ -833,6 +834,29 @@ def main():
 
         exporter_objects.append(_email_notification)
         exporter_functions.append(_email_notification.add)
+
+    if config["mqtt_enabled"]:
+
+        _mqtt_notification = MqttNotification(
+            mqtt_server=config["mqtt_mqtt_server"],
+            mqtt_port=config["mqtt_mqtt_port"],
+            mqtt_authentication=config["mqtt_mqtt_authentication"],
+            mqtt_login=config["mqtt_mqtt_login"],
+            mqtt_password=config["mqtt_mqtt_password"],
+            mqtt_topic=config["mqtt_mqtt_topic"],
+            station_position=(
+                config["station_lat"],
+                config["station_lon"],
+                config["station_alt"],
+            ),
+            launch_notifications=config["mqtt_launch_notifications"],
+            landing_notifications=config["mqtt_landing_notifications"],
+            landing_range_threshold=config["mqtt_landing_range_threshold"],
+            landing_altitude_threshold=config["mqtt_landing_altitude_threshold"],
+        )
+
+        exporter_objects.append(_mqtt_notification)
+        exporter_functions.append(_mqtt_notification.add)
 
     # Habitat Uploader - DEPRECATED - Sondehub DB now in use (>1.5.0)
     # if config["habitat_enabled"]:
