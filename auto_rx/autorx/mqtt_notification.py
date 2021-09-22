@@ -124,12 +124,22 @@ class MqttNotification(object):
     def process_telemetry(self, telemetry):
         """ Process a new telemmetry dict, and send a mqtt msg if it is a new sonde. """
 
+        mqtt_data = {
+            "id": telemetry["id"],
+            "time": telemetry["datetime_dt"].isoformat(),
+            "lat": telemetry["lat"],
+            "lon": telemetry["lon"],
+            "alt": telemetry["alt"],
+        }
+
+        self.log_info("telemetry - %s" % str(telemetry))
+
         try:
             # This is a new sonde. Send the MQTT msg.
             ##########################################################
             self.send_notification_mqtt(topic=self.mqtt_topic+"/telemetry", message=json.dumps(telemetry, default=str))
             ##########################################################
-        
+
         except Exception as e:
             self.log_error("Error sending telemetry MQTT msg - %s" % str(e))
 

@@ -235,7 +235,7 @@ def read_auto_rx_config(filename, no_sdr_test=False):
                     "mqtt", "mqtt_enabled"
                 )
                 auto_rx_config["mqtt_server"] = config.get("mqtt", "mqtt_server")
-                auto_rx_config["mqtt_port"] = config.get("mqtt", "mqtt_port")
+                auto_rx_config["mqtt_port"] = config.getint("mqtt", "mqtt_port")
                 auto_rx_config["mqtt_authentication"] = config.get(
                     "mqtt", "mqtt_authentication"
                 )
