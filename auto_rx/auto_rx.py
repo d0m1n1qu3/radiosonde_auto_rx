@@ -294,7 +294,7 @@ def handle_scan_results():
                             if abs(_key - _freq) < config["decoder_spacing_limit"]:
                                 # At this point, we can be pretty sure that there is another decoder already decoding this particular sonde ID.
                                 # Without actually starting another decoder and matching IDs, we can't be 100% sure, but it's a good chance.
-                                logging.warning(
+                                logging.info(
                                     "Task Manager - Detected %s sonde on %.3f MHz, but this is within %d kHz of an already running decoder. (This limit can be set using the 'decoder_spacing_limit' advanced config option.)"
                                     % (
                                         _type,
@@ -497,7 +497,7 @@ def telemetry_filter(telemetry):
     if "sats" in telemetry:
         if telemetry["sats"] < 4:
             logging.warning(
-                "Sonde %s can only see %d SVs - discarding position as bad."
+                "Sonde %s can only see %d GNSS sats - discarding position as bad."
                 % (telemetry["id"], telemetry["sats"])
             )
             return False
@@ -876,7 +876,7 @@ def main():
             position_report=config["aprs_position_report"],
             aprsis_host=config["aprs_server"],
             aprsis_port=config["aprs_port"],
-            synchronous_upload_time=config["aprs_upload_rate"],
+            upload_time=config["aprs_upload_rate"],
             callsign_validity_threshold=config["payload_id_valid"],
             station_beacon=config["station_beacon_enabled"],
             station_beacon_rate=config["station_beacon_rate"],

@@ -203,7 +203,18 @@ class SondeDecoder(object):
         # which don't necessarily have a consistent packet count to time increment ratio.
         # This is a tradeoff between being able to handle multiple iMet sondes on a single frequency, and
         # not flooding the various databases with sonde IDs in the case of a bad sonde.
-        self.imet_id = None
+
+        # iMet ID store v2
+        # Now instead of just latching onto an ID, we allow up to 4 new IDs to be created per decoder.
+        # This should hopefully handle a few iMets on the same frequency in a graceful manner.
+        self.imet_max_ids = 4
+        self.imet_id = []
+        # iMet-1 and iMet-4 sondes behave differently.
+        # iMet-1 sondes increment the frame counter *twice* each second, imet-4 only once per second.
+        # We need to detect this to be able to calculate a start time, and hence generate a serial number.
+        self.imet_type = None
+        self.imet_prev_time = None
+        self.imet_prev_frame = None
 
         # This will become our decoder thread.
         self.decoder = None
@@ -797,8 +808,12 @@ class SondeDecoder(object):
             )
 
             # DFM decoder
+            if len(self.raw_file_option)>0:
+                # Use raw ecc detailed raw output for DFM sondes.
+                self.raw_file_option = "--rawecc"
+
             decode_cmd = (
-                f"./dfm09mod -vv --ecc --json --dist --auto --softin -i {self.raw_file_option.upper()} 2>/dev/null"
+                f"./dfm09mod -vv --ecc --json --dist --auto --softin -i {self.raw_file_option} 2>/dev/null"
             )
 
             # DFM sondes transmit continuously - average over the last 2 frames, and peak hold
@@ -876,7 +891,7 @@ class SondeDecoder(object):
             )
 
             # M20 decoder
-            decode_cmd = f"./mXXmod --json --ptu -vvv --softin -i {self.raw_file_option} 2>/dev/null"
+            decode_cmd = f"./m20mod --json --ptu -vvv --softin -i {self.raw_file_option} 2>/dev/null"
 
             # M20 sondes transmit in short, irregular pulses - average over the last 2 frames, and use a peak hold
             demod_stats = FSKDemodStats(averaging_time=2.0, peak_hold=True)
@@ -1271,8 +1286,18 @@ class SondeDecoder(object):
                     # in the subtype field, so we can use this directly.
                     _telemetry["type"] = _telemetry["subtype"]
                 elif self.sonde_type == "DFM":
-                    # For DFM sondes, we need to use a lookup to convert the subtype field into a model.
-                    _telemetry["type"] = decode_dfm_subtype(_telemetry["subtype"])
+                    # As of 2021-2, the decoder provides a guess of the DFM subtype, provided as
+                    # a subtype field of "0xX:GUESS", e.g. "0xD:DFM17P"
+                    if ":" in _telemetry["subtype"]:
+                        _subtype = _telemetry["subtype"].split(":")[1]
+                        _telemetry["dfmcode"] = _telemetry["subtype"].split(":")[0]
+                        _telemetry["type"] = _subtype
+                        _telemetry["subtype"] = _subtype
+                    else:
+                        _telemetry["type"] = "DFM"
+                        _telemetry["subtype"] = "DFM"
+
+
 
                     # Check frame ID here to ensure we are on dfm09mod version with the frame number fixes (2020-12).
                     if _telemetry["frame"] < 256:
@@ -1302,7 +1327,7 @@ class SondeDecoder(object):
             # We append -Ozone to the sonde type field to indicate this.
             # TODO: Decode device ID from aux field to indicate what the aux payload actually is?
             if "aux" in _telemetry:
-                _telemetry["type"] += "-Ozone"
+               _telemetry["type"] += "-Ozone"
 
             # iMet Specific actions
             if self.sonde_type == "IMET":
@@ -1315,16 +1340,65 @@ class SondeDecoder(object):
 
                 # Fix up the time.
                 _telemetry["datetime_dt"] = fix_datetime(_telemetry["datetime"])
-                # Generate a unique ID based on the power-on time and frequency, as iMet sondes don't send one.
-                # Latch this ID and re-use it for the entire decode run.
-                if self.imet_id == None:
-                    self.imet_id = imet_unique_id(_telemetry)
+
+
+                # An attempt at detecting iMet-1 vs iMet-4 sondes based on how the frame count increments
+                # compared to the time.
+                # Note that this is going to break horribly if an iMet-1 and an iMet-4 are on the same frequency,
+                # or if there are multiple iMet-4's in the air when this is performed. I don't have a nice
+                # solution to that second problem.
+                # This may also break when running in UDP mode for long periods.
+                if self.imet_type is None:
+                    if self.imet_prev_frame is None:
+                        self.imet_prev_frame = _telemetry['frame']
+                        self.imet_prev_time = _telemetry["datetime_dt"]
+                        self.log_info("Waiting for additional frames to determine iMet type (1 or 4)")
+                        return False
+                    else:
+                        # Calculate and compare frame vs time deltas.
+                        _time_delta = (_telemetry["datetime_dt"] - self.imet_prev_time).total_seconds()
+                        _frame_delta = _telemetry['frame'] - self.imet_prev_frame
+
+                        if _time_delta == _frame_delta//2:
+                            # Frame counter increments at twice the rate of the time counter = iMet-1
+                            self.log_info("iMet sonde is most likely an iMet-1")
+                            self.imet_type = "iMet-1"
+                        elif _time_delta == _frame_delta:
+                            # Frame counter increments at the same rate as the time counter = iMet-4
+                            self.log_info("iMet sonde is most likely an iMet-4")
+                            self.imet_type = "iMet-4"
+                        else:
+                            # Some other case (possibly 2 sondes on the same frequency?)
+                            # Assume iMet-4...
+                            self.log_info("iMet sonde is most likely an iMet-4 (less confidence)")
+                            self.imet_type = "iMet-4"
+                else:
+                    _telemetry['subtype'] = self.imet_type
+
+
+                # Generate a unique ID based on the power-on time and frequency, as iMet sonde telemetry is painful
+                # and doesn't send any ID. 
+                _new_imet_id = imet_unique_id(_telemetry, imet1=(self.imet_type=="iMet-1"))
+
+                # If we have seen this ID before, keep using it.
+                if _new_imet_id in self.imet_id:
+                    _telemetry["id"] = _new_imet_id
+                else:
+                    # We have seen less than 4 different IDs while this decoder has been runing.
+                    # Accept that this may be a new iMet sonde, and add the ID to the iMet ID list.
+                    if len(self.imet_id) < self.imet_max_ids:
+                        self.imet_id.append(_new_imet_id)
+                        _telemetry["id"] = _new_imet_id
+                    else:
+                        # We have seen see many IDs this decode run, suspect this is likely an old iMet-1
+                        # Which doesn't have a useful frame counter.
+                        self.log_error("Exceeded maximum number of iMet sonde IDs for a decoder (4) - discarding this frame.")
+                        return False
 
                 # Re-generate the datetime string.
                 _telemetry["datetime"] = _telemetry["datetime_dt"].strftime(
                     "%Y-%m-%dT%H:%M:%SZ"
                 )
-                _telemetry["id"] = self.imet_id
 
             # iMet-5x Specific Actions
             if self.sonde_type == "IMET5":
@@ -1359,6 +1433,9 @@ class SondeDecoder(object):
                     )
                     # Calculate estimated frequency error from where we expected the sonde to be.
                     _telemetry["f_error"] = _telemetry["f_centre"] - self.sonde_freq
+
+                    # TODO - Compare the frequency estimate with any frequency information supplied in the sonde telemetry.
+                    # If there is a large difference (> 5 kHz or so), log a warning.
 
             # Try and generate an APRS callsign for this sonde.
             # Doing this calculation here allows us to pass it to the web interface to generate an appropriate link
